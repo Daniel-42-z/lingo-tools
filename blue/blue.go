@@ -3,12 +3,16 @@ package blue
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Daniel-42-z/lingo-tools/dictutils"
 	"github.com/spf13/pflag"
 )
 
-func IsSubWord(short, long string) bool {
+func IsSubWord(short, long string, continuous bool) bool {
+	if continuous {
+		return strings.Contains(long, short)
+	}
 	longChars := []rune(long)
 	shortChars := []rune(short)
 	shortLen := len(shortChars)
@@ -27,9 +31,9 @@ func IsSubWord(short, long string) bool {
 	return false
 }
 
-func MidBlueFindAll(wl dictutils.WordList, q string, action func(string)) {
+func MidBlueFindAll(wl dictutils.WordList, q string, continuous bool, action func(string)) {
 	for _, word := range wl {
-		if IsSubWord(q, word) {
+		if IsSubWord(q, word, continuous) {
 			action(word)
 		}
 	}
@@ -43,16 +47,16 @@ func filterLengthAndPrint(l int) func(string) {
 	}
 }
 
-func RunArgs(args []string) error {
+func RunArgs(args []string, dictPath string) error {
 	fs := pflag.NewFlagSet("blue", pflag.ContinueOnError)
 	var (
 		filterLength int
-		wordListPath string
 		question     string
+		continuous   bool
 	)
 	fs.IntVarP(&filterLength, "length", "l", 0, "Only print words of this length (use 0 to not filter)")
-	fs.StringVarP(&wordListPath, "word-list", "w", "words.txt", "Path to word list used")
 	fs.StringVarP(&question, "question", "q", "", "Question word")
+	fs.BoolVarP(&continuous, "continuous", "c", false, "Whether the word must be continuous")
 	if len(args) == 0 {
 		args = []string{"--help"}
 	}
@@ -75,11 +79,11 @@ func RunArgs(args []string) error {
 		action = filterLengthAndPrint(filterLength)
 	}
 
-	wl, err := dictutils.MakeWordList(wordListPath)
+	wl, err := dictutils.MakeWordList(dictPath)
 	if err != nil {
 		return fmt.Errorf("Failed to load word list: %s", err)
 	}
 
-	MidBlueFindAll(wl, question, action)
+	MidBlueFindAll(wl, question, continuous, action)
 	return nil
 }

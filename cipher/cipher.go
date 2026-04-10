@@ -181,18 +181,16 @@ func MakeCSVWriterAction(w *csv.Writer) func(Triplet) {
 }
 
 type options struct {
-	wordListPath string
-	upperBound   int
-	key          string
-	leading0     bool
-	outputPath   string
+	upperBound int
+	key        string
+	leading0   bool
+	outputPath string
 }
 
-func RunArgs(args []string) error {
+func RunArgs(args []string, dictPath string) error {
 	fs := pflag.NewFlagSet("cipher", pflag.ContinueOnError)
 	opts := options{}
 
-	fs.StringVarP(&opts.wordListPath, "word-list", "w", "words.txt", "Path to word list used")
 	fs.IntVarP(&opts.upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
 	fs.StringVarP(&opts.key, "key", "k", "wanderlust", "cipher")
 	fs.BoolVarP(&opts.leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
@@ -217,11 +215,11 @@ func RunArgs(args []string) error {
 		}
 		opts.outputPath = fmt.Sprintf("generated/%s-%d%s.csv", opts.key, opts.upperBound, suffix)
 	}
-	return run(opts)
+	return run(opts, dictPath)
 }
 
-func run(o options) error {
-	wordList, err := dictutils.MakeWordMap(o.wordListPath)
+func run(o options, dictPath string) error {
+	wordList, err := dictutils.MakeWordMap(dictPath)
 	if err != nil {
 		fmt.Println("error loading word list:", err)
 		os.Exit(1)
