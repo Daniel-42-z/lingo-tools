@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Daniel-42-z/lingo-tools/blue"
+	"github.com/Daniel-42-z/lingo-tools/bluered"
 	"github.com/Daniel-42-z/lingo-tools/cipher"
 	"github.com/spf13/pflag"
 )
@@ -24,14 +24,16 @@ func run() error {
 
 	args := fs.Args()
 	if len(args) < 1 {
-		return fmt.Errorf("no subcommands specified\nAvailable subcommands: cipher, blue")
+		return fmt.Errorf("no subcommands specified\nAvailable subcommands: cipher, blue, red")
 	}
 
 	switch args[0] {
 	case "cipher":
 		return cipher.RunArgs(args[1:], *dictPath)
 	case "blue":
-		return blue.RunArgs(args[1:], *dictPath)
+		return bluered.RunArgs(args[1:], *dictPath, bluered.Blue)
+	case "red":
+		return bluered.RunArgs(args[1:], *dictPath, bluered.Red)
 	default:
 		return fmt.Errorf("unknown command: %s", args[0])
 	}

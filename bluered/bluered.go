@@ -1,39 +1,30 @@
-package blue
+package bluered
 
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/Daniel-42-z/lingo-tools/dictutils"
+	"github.com/Daniel-42-z/lingo-tools/wordutils"
 	"github.com/spf13/pflag"
 )
 
-func IsSubWord(short, long string, continuous bool) bool {
-	if continuous {
-		return strings.Contains(long, short)
-	}
-	longChars := []rune(long)
-	shortChars := []rune(short)
-	shortLen := len(shortChars)
-	if shortLen == 0 {
-		return true
-	}
-	shortIndex := 0
-	for _, char := range longChars {
-		if char == shortChars[shortIndex] {
-			shortIndex++
-		}
-		if shortIndex == shortLen {
-			return true
-		}
-	}
-	return false
-}
+type Color int
 
-func MidBlueFindAll(wl dictutils.WordList, q string, continuous bool, action func(string)) {
+const (
+	Blue Color = iota
+	Red
+)
+
+func BlueRedFindAll(wl dictutils.WordList, color Color, q string, continuous bool, action func(string)) {
+	var cond func(string, string, bool) bool
+	if color == Blue {
+		cond = func(q, word string, continuous bool) bool { return wordutils.IsSubWord(q, word, continuous) }
+	} else {
+		cond = func(q, word string, continuous bool) bool { return wordutils.IsSubWord(word, q, continuous) }
+	}
 	for _, word := range wl {
-		if IsSubWord(q, word, continuous) {
+		if cond(q, word, continuous) {
 			action(word)
 		}
 	}
@@ -47,7 +38,7 @@ func filterLengthAndPrint(l int) func(string) {
 	}
 }
 
-func RunArgs(args []string, dictPath string) error {
+func RunArgs(args []string, dictPath string, color Color) error {
 	fs := pflag.NewFlagSet("blue", pflag.ContinueOnError)
 	var (
 		filterLength int
@@ -84,6 +75,6 @@ func RunArgs(args []string, dictPath string) error {
 		return fmt.Errorf("Failed to load word list: %s", err)
 	}
 
-	MidBlueFindAll(wl, question, continuous, action)
+	BlueRedFindAll(wl, color, question, continuous, action)
 	return nil
 }
