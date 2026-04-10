@@ -10,11 +10,11 @@ import (
 func run() error {
 	args := os.Args
 	if len(args) < 2 {
-		return fmt.Errorf("no subcommands specified")
+		return fmt.Errorf("no subcommands specified\nAvailable subcommands: cipher")
 	}
 	switch args[1] {
 	case "cipher":
-		return cipher.Run(os.Args[2:])
+		return cipher.RunArgs(os.Args[2:])
 	default:
 		return fmt.Errorf("unknown command: %s", args[1])
 	}

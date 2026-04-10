@@ -203,53 +203,64 @@ func MakeCSVWriterAction(w *csv.Writer) func(Triplet) {
 	}
 }
 
-func Run(args []string) error {
-	fs := pflag.NewFlagSet("cipher", pflag.ContinueOnError)
-	var (
-		wordListPath string
-		upperBound   int
-		key          string
-		leading0     bool
-		outputPath   string
-	)
+type options struct {
+	wordListPath string
+	upperBound   int
+	key          string
+	leading0     bool
+	outputPath   string
+}
 
-	fs.StringVarP(&wordListPath, "word-list", "w", "words.txt", "Path to word list used")
-	fs.IntVarP(&upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
-	fs.StringVarP(&key, "key", "k", "wanderlust", "cipher")
-	fs.BoolVarP(&leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
-	fs.StringVarP(&outputPath, "output", "o", "", "File path to output CSV")
+func RunArgs(args []string) error {
+	fs := pflag.NewFlagSet("cipher", pflag.ContinueOnError)
+	opts := options{}
+
+	fs.StringVarP(&opts.wordListPath, "word-list", "w", "words.txt", "Path to word list used")
+	fs.IntVarP(&opts.upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
+	fs.StringVarP(&opts.key, "key", "k", "wanderlust", "cipher")
+	fs.BoolVarP(&opts.leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
+	fs.StringVarP(&opts.outputPath, "output", "o", "", "File path to output CSV")
 	fs.Lookup("output").DefValue = "generated/<key>-<max>[-0].csv"
+
+	if len(args) == 0 {
+		args = []string{"--help"}
+	}
+
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, pflag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 
 	if !fs.Lookup("output").Changed {
 		suffix := ""
-		if leading0 {
+		if opts.leading0 {
 			suffix = "-0"
 		}
-
-		// Format: key-upperBound[-0].csv
-		outputPath = "generated/" + key + "-" + strconv.Itoa(upperBound) + suffix + ".csv"
+		opts.outputPath = fmt.Sprintf("generated/%s-%d%s.csv", opts.key, opts.upperBound, suffix)
 	}
+	return run(opts)
+}
 
-	wordList, err := MakeWordList(wordListPath)
+func run(o options) error {
+	wordList, err := MakeWordList(o.wordListPath)
 	if err != nil {
 		fmt.Println("error loading word list:", err)
 		os.Exit(1)
 	}
-	cipher, err := CipherFromKey(key, leading0)
+	cipher, err := CipherFromKey(o.key, o.leading0)
 	if err != nil {
 		fmt.Println("error creating cipher:", err)
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(o.outputPath), 0755); err != nil {
 		fmt.Println("error creating output directory:", err)
 		os.Exit(1)
 	}
 
-	file, err := os.Create(outputPath)
+	file, err := os.Create(o.outputPath)
 	if err != nil {
 		fmt.Println("error creating csv file:", err)
 		os.Exit(1)
@@ -270,7 +281,7 @@ func Run(args []string) error {
 		os.Exit(1)
 	}
 
-	cipher.FindValidSums(upperBound, wordList, MakeCSVWriterAction(w))
+	cipher.FindValidSums(o.upperBound, wordList, MakeCSVWriterAction(w))
 
 	if err := w.Error(); err != nil {
 		fmt.Println("error flushing csv:", err)

@@ -1,0 +1,1 @@
+- Build the program in the `./build/` directory
