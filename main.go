@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Daniel-42-z/lingo-tools/blue"
 	"github.com/Daniel-42-z/lingo-tools/cipher"
 )
 
@@ -15,6 +16,8 @@ func run() error {
 	switch args[1] {
 	case "cipher":
 		return cipher.RunArgs(os.Args[2:])
+	case "blue":
+		return blue.RunArgs(os.Args[2:])
 	default:
 		return fmt.Errorf("unknown command: %s", args[1])
 	}

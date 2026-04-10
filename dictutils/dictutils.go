@@ -1,4 +1,4 @@
-package utils
+package dictutils
 
 import (
 	"os"
@@ -21,6 +21,11 @@ func MakeWordMap(fileName string) (WordMap, error) {
 		}
 	}
 	return wordMap, nil
+}
+
+func IsValidWord(w string, wm WordMap) bool {
+	_, ok := wm[w]
+	return ok
 }
 
 type WordList []string

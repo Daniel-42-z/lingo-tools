@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"strings"
 
+	"github.com/Daniel-42-z/lingo-tools/dictutils"
 	"github.com/spf13/pflag"
 )
 
@@ -112,44 +112,21 @@ func BaseTimes(n1, n2 string, b int) (string, error) {
 	return strconv.FormatInt(product, b), nil
 }
 
-type WordList map[string]struct{}
-
-func MakeWordList(fileName string) (WordList, error) {
-	wordList := make(map[string]struct{})
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		return wordList, err
-	}
-
-	for word := range strings.SplitSeq(string(data), "\n") {
-		word = strings.TrimSpace(strings.ToLower(word))
-		if word != "" {
-			wordList[word] = struct{}{}
-		}
-	}
-	return wordList, nil
-}
-
-func IsValidWord(w string, wl WordList) bool {
-	_, ok := wl[w]
-	return ok
-}
-
-type Word struct {
+type CipherWord struct {
 	numbers string
 	letters string
 }
 
-type Triplet [3]Word
+type Triplet [3]CipherWord
 
-func (c Cipher) FindValidSums(maxSum int, wl WordList, action func(Triplet)) {
-	validInfo := make(map[int]Word)
+func (c Cipher) FindValidSums(maxSum int, wl dictutils.WordMap, action func(Triplet)) {
+	validInfo := make(map[int]CipherWord)
 	validNumbers := make([]int, 0)
 
 	for k := range maxSum {
 		numbers, letters := c.fromInt(k)
-		if IsValidWord(letters, wl) {
-			validInfo[k] = Word{numbers, letters}
+		if dictutils.IsValidWord(letters, wl) {
+			validInfo[k] = CipherWord{numbers, letters}
 			validNumbers = append(validNumbers, k)
 		}
 	}
@@ -244,7 +221,7 @@ func RunArgs(args []string) error {
 }
 
 func run(o options) error {
-	wordList, err := MakeWordList(o.wordListPath)
+	wordList, err := dictutils.MakeWordMap(o.wordListPath)
 	if err != nil {
 		fmt.Println("error loading word list:", err)
 		os.Exit(1)
