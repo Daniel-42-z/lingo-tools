@@ -1,46 +1,29 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/Daniel-42-z/lingo-tools/bluered"
 	"github.com/Daniel-42-z/lingo-tools/cipher"
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 )
 
-func run() error {
-	fs := pflag.NewFlagSet("lingo-tools", pflag.ContinueOnError)
-	fs.SetInterspersed(false)
-	dictPath := fs.StringP("dict", "d", "words.txt", "Path to word list used")
-
-	if err := fs.Parse(os.Args[1:]); err != nil {
-		if errors.Is(err, pflag.ErrHelp) {
-			return nil
-		}
-		return err
-	}
-
-	args := fs.Args()
-	if len(args) < 1 {
-		return fmt.Errorf("no subcommands specified\nAvailable subcommands: cipher, blue, red")
-	}
-
-	switch args[0] {
-	case "cipher":
-		return cipher.RunArgs(args[1:], *dictPath)
-	case "blue":
-		return bluered.RunArgs(args[1:], *dictPath, bluered.Blue)
-	case "red":
-		return bluered.RunArgs(args[1:], *dictPath, bluered.Red)
-	default:
-		return fmt.Errorf("unknown command: %s", args[0])
-	}
-}
-
 func main() {
-	if err := run(); err != nil {
+	var dictPath string
+
+	rootCmd := &cobra.Command{
+		Use:   "lingo-tools",
+		Short: "A collection of tools for word games",
+	}
+
+	rootCmd.PersistentFlags().StringVarP(&dictPath, "dict", "d", "words.txt", "Path to word list used")
+
+	rootCmd.AddCommand(cipher.NewCipherCmd(&dictPath))
+	rootCmd.AddCommand(bluered.NewBlueRedCmd(bluered.Blue, &dictPath))
+	rootCmd.AddCommand(bluered.NewBlueRedCmd(bluered.Red, &dictPath))
+
+	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

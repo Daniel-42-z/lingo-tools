@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Daniel-42-z/lingo-tools/dictutils"
+	"github.com/spf13/cobra"
 	"github.com/Daniel-42-z/lingo-tools/wordutils"
-	"github.com/spf13/pflag"
 )
 
 type Color int
@@ -38,43 +38,46 @@ func filterLengthAndPrint(l int) func(string) {
 	}
 }
 
-func RunArgs(args []string, dictPath string, color Color) error {
-	fs := pflag.NewFlagSet("blue", pflag.ContinueOnError)
+func NewBlueRedCmd(color Color, dictPath *string) *cobra.Command {
+	name := "blue"
+	if color == Red {
+		name = "red"
+	}
+
 	var (
 		filterLength int
 		question     string
 		continuous   bool
 	)
-	fs.IntVarP(&filterLength, "length", "l", 0, "Only print words of this length (use 0 to not filter)")
-	fs.StringVarP(&question, "question", "q", "", "Question word")
-	fs.BoolVarP(&continuous, "continuous", "c", false, "Whether the word must be continuous")
-	if len(args) == 0 {
-		args = []string{"--help"}
-	}
 
-	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, pflag.ErrHelp) {
+	cmd := &cobra.Command{
+		Use:   name,
+		Short: fmt.Sprintf("Find words for the %s game mode", name),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if question == "" {
+				return errors.New("Question word not specified. (Specify with -q)")
+			}
+
+			var action func(string)
+			if filterLength == 0 {
+				action = func(s string) { fmt.Println(s) }
+			} else {
+				action = filterLengthAndPrint(filterLength)
+			}
+
+			wl, err := dictutils.MakeWordList(*dictPath)
+			if err != nil {
+				return fmt.Errorf("failed to load word list: %w", err)
+			}
+
+			BlueRedFindAll(wl, color, question, continuous, action)
 			return nil
-		}
-		return err
+		},
 	}
 
-	if question == "" {
-		return errors.New("Question word not specified. (Specify with -q)")
-	}
+	cmd.Flags().IntVarP(&filterLength, "length", "l", 0, "Only print words of this length (use 0 to not filter)")
+	cmd.Flags().StringVarP(&question, "question", "q", "", "Question word")
+	cmd.Flags().BoolVarP(&continuous, "continuous", "c", false, "Whether the word must be continuous")
 
-	var action func(string)
-	if filterLength == 0 {
-		action = func(s string) { fmt.Println(s) }
-	} else {
-		action = filterLengthAndPrint(filterLength)
-	}
-
-	wl, err := dictutils.MakeWordList(dictPath)
-	if err != nil {
-		return fmt.Errorf("Failed to load word list: %s", err)
-	}
-
-	BlueRedFindAll(wl, color, question, continuous, action)
-	return nil
+	return cmd
 }

@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/Daniel-42-z/lingo-tools/dictutils"
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 )
 
 type Cipher struct {
@@ -180,87 +180,70 @@ func MakeCSVWriterAction(w *csv.Writer) func(Triplet) {
 	}
 }
 
-type options struct {
-	upperBound int
-	key        string
-	leading0   bool
-	outputPath string
+func NewCipherCmd(dictPath *string) *cobra.Command {
+	var (
+		upperBound int
+		key        string
+		leading0   bool
+		outputPath string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "cipher",
+		Short: "Find valid word sums using a cipher",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !cmd.Flags().Changed("output") {
+				suffix := ""
+				if leading0 {
+					suffix = "-0"
+				}
+				outputPath = fmt.Sprintf("generated/%s-%d%s.csv", key, upperBound, suffix)
+			}
+			return run(upperBound, key, leading0, outputPath, *dictPath)
+		},
+	}
+
+	cmd.Flags().IntVarP(&upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
+	cmd.Flags().StringVarP(&key, "key", "k", "wanderlust", "cipher")
+	cmd.Flags().BoolVarP(&leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
+	cmd.Flags().StringVarP(&outputPath, "output", "o", "", "File path to output CSV")
+	cmd.Flag("output").DefValue = "generated/<key>-<max>[-0].csv"
+
+	return cmd
 }
 
-func RunArgs(args []string, dictPath string) error {
-	fs := pflag.NewFlagSet("cipher", pflag.ContinueOnError)
-	opts := options{}
-
-	fs.IntVarP(&opts.upperBound, "max", "m", 200000, "Max value of the sum (in base 10)")
-	fs.StringVarP(&opts.key, "key", "k", "wanderlust", "cipher")
-	fs.BoolVarP(&opts.leading0, "leading0", "0", false, "Whether to start the \"numbers\" list with 0")
-	fs.StringVarP(&opts.outputPath, "output", "o", "", "File path to output CSV")
-	fs.Lookup("output").DefValue = "generated/<key>-<max>[-0].csv"
-
-	if len(args) == 0 {
-		args = []string{"--help"}
-	}
-
-	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, pflag.ErrHelp) {
-			return nil
-		}
-		return err
-	}
-
-	if !fs.Lookup("output").Changed {
-		suffix := ""
-		if opts.leading0 {
-			suffix = "-0"
-		}
-		opts.outputPath = fmt.Sprintf("generated/%s-%d%s.csv", opts.key, opts.upperBound, suffix)
-	}
-	return run(opts, dictPath)
-}
-
-func run(o options, dictPath string) error {
+func run(upperBound int, key string, leading0 bool, outputPath string, dictPath string) error {
 	wordList, err := dictutils.MakeWordMap(dictPath)
 	if err != nil {
-		fmt.Println("error loading word list:", err)
-		os.Exit(1)
+		return fmt.Errorf("error loading word list: %w", err)
 	}
-	cipher, err := CipherFromKey(o.key, o.leading0)
+	cipher, err := CipherFromKey(key, leading0)
 	if err != nil {
-		fmt.Println("error creating cipher:", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating cipher: %w", err)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(o.outputPath), 0755); err != nil {
-		fmt.Println("error creating output directory:", err)
-		os.Exit(1)
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return fmt.Errorf("error creating output directory: %w", err)
 	}
 
-	file, err := os.Create(o.outputPath)
+	file, err := os.Create(outputPath)
 	if err != nil {
-		fmt.Println("error creating csv file:", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating csv file: %w", err)
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			fmt.Println("error closing csv file:", err)
-			os.Exit(1)
-		}
-	}()
+	defer file.Close()
 
 	w := csv.NewWriter(file)
 	defer w.Flush()
 
 	header := []string{"Numbers 1", "Letters 1", "Numbers 2", "Letters 2", "Numbers 3", "Letters 3"}
 	if err := w.Write(header); err != nil {
-		fmt.Println("error writing csv header:", err)
-		os.Exit(1)
+		return fmt.Errorf("error writing csv header: %w", err)
 	}
 
-	cipher.FindValidSums(o.upperBound, wordList, MakeCSVWriterAction(w))
+	cipher.FindValidSums(upperBound, wordList, MakeCSVWriterAction(w))
 
 	if err := w.Error(); err != nil {
-		fmt.Println("error flushing csv:", err)
-		os.Exit(1)
+		return fmt.Errorf("error flushing csv: %w", err)
 	}
 	return nil
 }
